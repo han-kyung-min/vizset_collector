@@ -357,6 +357,16 @@ void Costmap2D::polygonOutlineCells(const std::vector<MapLocation>& polygon, std
   }
 }
 
+void Costmap2D::rayshootCells(const std::vector<MapLocation>& polygon, std::vector<MapLocation>& polygon_cells)
+{
+  PolygonOutlineCells cell_gatherer(*this, costmap_, polygon_cells);
+assert(!polygon.empty());
+  for (unsigned int i = 0; i < polygon.size() - 1; ++i)
+  {
+    raytraceLine(cell_gatherer, polygon[i].x, polygon[i].y, polygon[i + 1].x, polygon[i + 1].y);
+  }
+}
+
 void Costmap2D::convexFillCells(const std::vector<MapLocation>& polygon, std::vector<MapLocation>& polygon_cells)
 {
   // we need a minimum polygon of a triangle

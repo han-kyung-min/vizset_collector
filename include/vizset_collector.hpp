@@ -25,16 +25,12 @@
 #define OCCUPIED (255)
 #define FREE (0)
 
-
 //#define DEBUG_DRAW
 using namespace std;
 using namespace costmap_2d;
-//using VizSet = **MapLocation;
-//using VizSetSize = vector<int> ;
 
 namespace set_collector
 {
-
 
 class VizSetCollector
 {
@@ -52,14 +48,11 @@ public:
 	void startMouseEvent(  ) ;
 	cv::Mat GetMapImg(){ return mcv_map_orig; }
 	cv::Mat* GetMapImgPtr() { return &mcv_map_orig; }
-	//std::vector<VizSet> GetVizSet() const {return  mve_FreeCells; } ;
-	// GetVizSet() {return m_vizset; };
-	//vector<int> GetVizSetSize() const {return m_vizsetsize; }
 
 	MapLocation** GetVizSetPtr() {return mppst_vizset; }
 	int* GetVizSetSizePtr() {return mpn_vizsetsize; }
 
-	int GetNumFullRays() {return mu_num_fullrays; }
+	int GetNumFreeCells() {return mu_num_freecells; }
 
 private:
 
@@ -71,16 +64,18 @@ private:
 	uint32_t mu_gmheight, mu_gmwidth ;
 
 	// resized (downsampled) height and width
-	uint32_t mu_cvheight, mu_cvwidth, mu_cvmapsize, mu_num_fullrays ;
+	uint32_t mu_cvheight, mu_cvwidth, mu_num_freecells ;
 	double mf_resolution, mf_ox, mf_oy;
-
-	//std::vector<VizSet> mve_FreeCells ;
 	costmap_2d::Costmap2D mo_costmap;
 
-	//VizSet m_vizset ;
-	//vector<int> m_vizsetsize ;
 	int* mpn_vizsetsize ;
 	MapLocation** mppst_vizset ;
+
+	// num possible points to rays. i.e., # of total free cells in the map
+	uint32_t mu_cvmapsize;
+
+	// num possible scanned pts from ray shoots (360 * ray lengths ) from the each scanning point
+	uint32_t mu_max_tracecnts ;
 };
 
 

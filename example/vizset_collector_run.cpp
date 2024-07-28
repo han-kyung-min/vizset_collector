@@ -216,7 +216,7 @@ void on_mouse(int event, int x, int y, int flags, void* userdata)
 //cout << "flags: " << flags << endl;
 clock_t alloc_start = clock();
 	VizSetCollector* ptr = (VizSetCollector*) userdata ;
-	int num_fullrays = ptr->GetNumFullRays() ;
+	int num_freecells = ptr->GetNumFreeCells() ;
 
 	MapLocation** ppvizset = ptr->GetVizSetPtr() ;
 	int* vizsetsize = ptr->GetVizSetSizePtr();
@@ -227,19 +227,19 @@ double alloc_time = double(alloc_end - alloc_start)/CLOCKS_PER_SEC;
 
     if ( event == cv::EVENT_LBUTTONDOWN )
     {
-    	printf("tot num full rays %d \n", num_fullrays );
+    	printf("tot num free cells %d \n", num_freecells );
     	cv::cvtColor(img_orig, dispimg, cv::COLOR_GRAY2RGB);
         std::cout << "Left button of the mouse is clicked in on_mouse() func (" << x << ", " << y << ")" << std::endl;
-        std::cout << ptr->GetMapImg().cols << " " << ptr->GetMapImg().rows << endl;
+        std::cout << "Map Size (width, height): " <<  ptr->GetMapImg().cols << " " << ptr->GetMapImg().rows << endl;
         int minerror = 10000000;
 
         int rcentidx = 0 ;
         clock_t start_search = clock() ;
-        for( int sidx=0; sidx < num_fullrays; sidx++)
+        for( int sidx=0; sidx < num_freecells; sidx++)
         {
         	uint32_t cx = ppvizset[sidx][0].x ;
         	uint32_t cy = ppvizset[sidx][0].y ;
-printf("sidx: %d cxy: %d %d \n", sidx, cx, cy);
+//printf("sidx: %d cxy: %d %d \n", sidx, cx, cy);
         	int error = sqrt( (cx - x)*(cx - x) + (cy - y)*(cy - y) ) ;
         	if(error < minerror)
         	{
@@ -261,12 +261,12 @@ printf("sidx: %d cxy: %d %d \n", sidx, cx, cy);
 		int num_vizset = vizsetsize[rcentidx];
 		for( int midx=0; midx < num_vizset; midx++ )
 		{
-			cv::circle(dispimg, cv::Point(ppvizset[rcentidx][midx].x, ppvizset[rcentidx][midx].y), 2, cv::Scalar(0,255,255), 1, 8, 0) ;
+			cv::circle(dispimg, cv::Point(ppvizset[rcentidx][midx].x, ppvizset[rcentidx][midx].y), 1, cv::Scalar(0,255,255), 1, 8, 0) ;
 		}
-
+		cv::circle(dispimg, cv::Point(ppvizset[rcentidx][0].x, ppvizset[rcentidx][0].y), 4, cv::Scalar(0,0,255), cv::FILLED, 8, 0) ;
         clock_t end_draw = clock();
         double draw_time = double(end_draw - start_draw)/CLOCKS_PER_SEC;
-        printf("search time %.3fs / draw time %.3fs \n", search_time, draw_time);
+//printf("search time %.3fs / draw time %.3fs \n", search_time, draw_time);
 		cv::imshow(window_name, dispimg);
     }
 }
@@ -306,8 +306,12 @@ int main(int argc, char **argv)
   cv::setMouseCallback(window_name, on_mouse, pVizSetCollector ) ;
 
   imshow(window_name, dispimg);
-  cv::waitKey(0);
 
+  while(1)
+  {
+  	  int inKey = cv::waitKey();
+  	  if(inKey == 27) break;
+  }
   cv::destroyAllWindows();
 
   return 0;
