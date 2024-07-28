@@ -29,8 +29,8 @@
 //#define DEBUG_DRAW
 using namespace std;
 using namespace costmap_2d;
-using VizSet = vector<vector<MapLocation>>;
-using VizSetSize = vector<int> ;
+//using VizSet = **MapLocation;
+//using VizSetSize = vector<int> ;
 
 namespace set_collector
 {
@@ -53,10 +53,10 @@ public:
 	cv::Mat GetMapImg(){ return mcv_map_orig; }
 	cv::Mat* GetMapImgPtr() { return &mcv_map_orig; }
 	//std::vector<VizSet> GetVizSet() const {return  mve_FreeCells; } ;
-	vector<vector<MapLocation>> GetVizSet() {return m_vizset; };
-	vector<int> GetVizSetSize() const {return m_vizsetsize; }
+	// GetVizSet() {return m_vizset; };
+	//vector<int> GetVizSetSize() const {return m_vizsetsize; }
 
-	MapLocation** GetVizSetPtr() {return mpp_vizset; }
+	MapLocation** GetVizSetPtr() {return mppst_vizset; }
 	int* GetVizSetSizePtr() {return mpn_vizsetsize; }
 
 	int GetNumFullRays() {return mu_num_fullrays; }
@@ -77,10 +77,10 @@ private:
 	//std::vector<VizSet> mve_FreeCells ;
 	costmap_2d::Costmap2D mo_costmap;
 
-	VizSet m_vizset ;
-	vector<int> m_vizsetsize ;
+	//VizSet m_vizset ;
+	//vector<int> m_vizsetsize ;
 	int* mpn_vizsetsize ;
-	MapLocation** mpp_vizset ;
+	MapLocation** mppst_vizset ;
 };
 
 

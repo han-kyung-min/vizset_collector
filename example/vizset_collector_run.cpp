@@ -213,22 +213,17 @@ class MapServer
 //void on_mouse(int event, int x, int y, int flags, vector<VizSet> userdata)
 void on_mouse(int event, int x, int y, int flags, void* userdata)
 {
-	//cout << "flags: " << flags << endl;
-	//std::vector<VizSet>* pmydata = (std::vector<VizSet>*) userdata;
-	//VizSet* pmydata = (VizSet*) userdata ;
-	//VizSet* pstart_ptr = pmydata ;
-//	MapLocation *ploc = (MapLocation*) userdata;
-
+//cout << "flags: " << flags << endl;
 clock_t alloc_start = clock();
 	VizSetCollector* ptr = (VizSetCollector*) userdata ;
 	int num_fullrays = ptr->GetNumFullRays() ;
 
 	MapLocation** ppvizset = ptr->GetVizSetPtr() ;
-	VizSetSize vizsetsize = ptr->GetVizSetSize();
+	int* vizsetsize = ptr->GetVizSetSizePtr();
 
 clock_t alloc_end = clock();
 double alloc_time = double(alloc_end - alloc_start)/CLOCKS_PER_SEC;
-printf("alloc time: %f \n", alloc_time);
+//printf("alloc time: %f \n", alloc_time);
 
     if ( event == cv::EVENT_LBUTTONDOWN )
     {
@@ -288,7 +283,6 @@ int main(int argc, char **argv)
   int num_downsamples = (argc == 2) ? 0 : atof(argv[2]);
 
 // load map from img
-
   nav_msgs::GetMap::Response map_resp_;
   int negate;
   double occ_th, free_th;
@@ -303,10 +297,6 @@ int main(int argc, char **argv)
   VizSetCollector oVizSetCollector( gmap, num_downsamples );
   oVizSetCollector.initialize();
   oVizSetCollector.computeVisibiliies();
-
-//  VizSet vizset = oVizSetCollector.GetVizSet() ;
-//  for (int idx=0; idx< 11; idx++)
-//	  printf("%d %d \n", vizset[idx][0].x, vizset[idx][0].y);
 
   img_orig = oVizSetCollector.GetMapImg().clone();
   cv::cvtColor(img_orig, dispimg, cv::COLOR_GRAY2RGB);

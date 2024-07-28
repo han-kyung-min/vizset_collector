@@ -346,6 +346,10 @@ vizset_collector.hpp
 time.h
 /home/hankm/binary_ws/vizset_collector/example/time.h
 
+/home/hankm/binary_ws/vizset_collector/src/vizset_collector.cpp
+vizset_collector.hpp
+/home/hankm/binary_ws/vizset_collector/src/vizset_collector.hpp
+
 /usr/include/opencv4/opencv2/calib3d.hpp
 opencv2/core.hpp
 /usr/include/opencv4/opencv2/opencv2/core.hpp
