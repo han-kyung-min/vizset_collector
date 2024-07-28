@@ -12,7 +12,8 @@ namespace set_collector
 
 VizSetCollector::VizSetCollector( const nav_msgs::OccupancyGrid& gmap, const int& num_dowsamples ):
 mn_numpyrdownsample(num_dowsamples),
-mpcost_translation_table(NULL)
+mpcost_translation_table(NULL),
+mu_num_fullrays(0)
 {
 	mpcost_translation_table = new uint8_t[101];
 
@@ -92,9 +93,7 @@ void VizSetCollector::initialize()
 	mu_cvheight = mcv_map.rows;
 	mu_cvwidth  = mcv_map.cols;
 
-
 	mo_costmap.resizeMap( mu_cvwidth, mu_cvheight, mf_resolution, 0, 0 );
-
 	memcpy(mo_costmap.getCharMap(), &mcv_map.data[0], mu_cvheight*mu_cvwidth*sizeof(uchar) ) ;
 	printf(" cv ds mapsize: (%d %d) \n", mu_cvheight, mu_cvwidth);
 
@@ -102,6 +101,14 @@ void VizSetCollector::initialize()
 	// 			1. Identify all free cells
 	///////////////////////////////////////////////////////////////////////////////////
 
+	mu_cvmapsize = mu_cvheight * mu_cvwidth;
+	int nradius = FOV_RADIUS / std::pow(2, mn_numpyrdownsample) ;
+	int maxset_size = 360 * 30 ;//(nradius) ;
+
+	m_vizsetsize = VizSetSize( mu_cvmapsize );
+	m_vizset	 = VizSet(mu_cvmapsize , vector<MapLocation>(maxset_size)) ;
+
+	uint32_t tmpcnt = 0;
 	for (int iy=0; iy < mu_cvheight; iy++)
 	{
 		for (int ix =0; ix < mu_cvwidth; ix++)
@@ -110,12 +117,18 @@ void VizSetCollector::initialize()
 			uchar val = mcv_map.data[iidx] ;
 			if(val == 0 )
 			{
-				VizSet oVG( mu_cvwidth, mu_cvheight, ix, iy, iidx );
-				mve_FreeCells.push_back(oVG);
+				m_vizset[tmpcnt][0].x = ix ;
+				m_vizset[tmpcnt][0].y = iy ;
+//printf("%d %d \n", m_vizset[mu_num_fullrays][0].x, m_vizset[mu_num_fullrays][0].y);
+				tmpcnt++ ;
 // 			  cv::circle(cvimg, cv::Point(jj,ii), 2, cv::Scalar(0,255,255), 1, 8, 0) ;
 			}
 		}
 	}
+
+	mpp_vizset = &&m_vizset[0][0];
+
+	mu_num_fullrays = tmpcnt ;
 }
 
 void VizSetCollector::computeVisibiliies()
@@ -123,25 +136,33 @@ void VizSetCollector::computeVisibiliies()
 	  clock_t start = clock();
 	  double rayshoot_time = 0;
 	  int nradius = FOV_RADIUS / std::pow(2, mn_numpyrdownsample) ;
-	  printf(" num pts to rayshoot: %lu \n rayshoot depth: %d \n", mve_FreeCells.size(), nradius);
+	  printf(" num pts to rayshoot: %lu \n rayshoot depth: %d \n", mu_num_fullrays, nradius);
 
 #ifdef DEBUG_DRAW
 cv::Mat cvimg;
 cv::cvtColor(mcv_map, cvimg, cv::COLOR_GRAY2RGB);
 #endif
-	  for(int tmpidx = 0; tmpidx < mve_FreeCells.size(); tmpidx++)
+	  for(int tmpidx = 0; tmpidx < mu_num_fullrays; tmpidx++)
 	  {
-		  VizSet oVG = mve_FreeCells[tmpidx] ;
-		  uint32_t cellidx = oVG.GetSelfIdx() ;
-		  MapLocation rstart = oVG.GetSelfLoc();
+		  //VizSet oVG = mve_FreeCells[tmpidx] ;
+		  //uint32_t cellidx = oVG.GetSelfIdx() ;
+//printf("tmpidx %d\n", tmpidx);
+//printf("%d %d\n", m_vizset[tmpidx][0].x,  m_vizset[tmpidx][0].y );
+
+		  MapLocation rstart = m_vizset[tmpidx][0] ; //oVG.GetSelfLoc();
+//printf("done here 0-1 \n");
 
 #ifdef DEBUG_DRAW
 cv::circle(cvimg, cv::Point(rstart.x, rstart.y), 1, cv::Scalar(255,0,0), 1, 8, 0) ;
+//printf("start %d %d \n", rstart.x, rstart.y);
 #endif
-		  double perc = (double)tmpidx / (double)mve_FreeCells.size() * 100 ;
+		  double perc = (double)tmpidx / (double)mu_num_fullrays * 100 ;
 		  printf("\r %04f", perc); fflush(stdout);
+
+  	  	  int vizset_cnt = 1;
 		  for (int ii =0; ii < 360; ii++ )
 		  {
+//printf("ii %d \n", ii);
 			  costmap_2d::MapLocation rend ;
 			  int X = static_cast<int>( (double)rstart.x + nradius * cos( ANG_STEP * ii ) ) ;
 			  int Y = static_cast<int>( (double)rstart.y + nradius * sin( ANG_STEP * ii ) ) ;
@@ -150,13 +171,14 @@ cv::circle(cvimg, cv::Point(rstart.x, rstart.y), 1, cv::Scalar(255,0,0), 1, 8, 0
 			  std::vector<costmap_2d::MapLocation> polygon;
 			  polygon.push_back(rstart);
 			  polygon.push_back(rend);
-
-	  std::vector<costmap_2d::MapLocation> polygon_cells;
+			  std::vector<costmap_2d::MapLocation> polygon_cells;
+//printf("done here 0-0 \n");
 	  clock_t rstart_time = clock();
-	  mo_costmap.polygonOutlineCells( polygon, polygon_cells );
+	  	  	  mo_costmap.polygonOutlineCells( polygon, polygon_cells );
 	  clock_t rend_time = clock();
 	  rayshoot_time += double(rend_time - rstart_time)/CLOCKS_PER_SEC;
-
+//printf("num pts on the ray %d \n", polygon_cells.size());
+assert( polygon_cells.size() <= 30 );
 			  for (int jj=0; jj < polygon_cells.size(); jj++)
 			  {
 				  cv::Point pt( polygon_cells[jj].x, polygon_cells[jj].y ) ;
@@ -164,11 +186,16 @@ cv::circle(cvimg, cv::Point(rstart.x, rstart.y), 1, cv::Scalar(255,0,0), 1, 8, 0
 cv::circle(cvimg, pt, 2, cv::Scalar(0,255,255), 1, 8, 0) ;
 #endif
 				  uint32_t uchidx = pt.y * mu_cvwidth + pt.x ;
-				  mve_FreeCells[tmpidx].appendMemberCellIdx( uchidx ) ;
-				  mve_FreeCells[tmpidx].appendMemberCellLoc( polygon_cells[jj] );
+//printf("jj %d %d vizcnt %d \n",jj, polygon_cells.size(), vizset_cnt );
+				  m_vizset[tmpidx][vizset_cnt].x = polygon_cells[jj].x ;
+				  m_vizset[tmpidx][vizset_cnt].y = polygon_cells[jj].y ;
+				  vizset_cnt++ ;
+//printf("ii %d \n", ii);
 			  }
-			  //veFreeCells[tmpidx] = oVG ;
+//printf("done here 0-2 \n");
 		  }
+//printf("done here 1-1 \n");
+		  m_vizsetsize[tmpidx] = vizset_cnt ;  // self + members
 	  }
 	  clock_t end = clock();
 	  double elapsed = double(end - start)/CLOCKS_PER_SEC;
@@ -176,7 +203,7 @@ cv::circle(cvimg, pt, 2, cv::Scalar(0,255,255), 1, 8, 0) ;
 	  printf("Rayshoot time only: %.3f seconds. \n", rayshoot_time);
 
 #ifdef DEBUG_DRAW
-cv::namedWindow("rayshoot res", 0);
+cv::namedWindow("rayshoot res");
 cv::imshow("rayshoot res", cvimg);
 cv::waitKey(0);
 cv::Mat cvimg_orig ;
@@ -187,35 +214,31 @@ cv::cvtColor(mcv_map_orig, cvimg_orig, cv::COLOR_GRAY2RGB);
 	    if (mn_numpyrdownsample > 0)
 	    {
 	    	uint32_t nscale = std::pow(2, mn_numpyrdownsample) ;
-			for(int idx=0; idx < mve_FreeCells.size() ; idx++)
+			for(int idx=0; idx < mu_num_fullrays ; idx++)
 			{
 				// upsample self loc
-				VizSet oVG = mve_FreeCells[idx];
-				MapLocation upscaled_pt = oVG.GetSelfLoc() ;
-				upscaled_pt.x = oVG.GetSelfLoc().x * nscale ;
-				upscaled_pt.y = oVG.GetSelfLoc().y * nscale ;
+				//VizSet oVG = mve_FreeCells[idx];
+				MapLocation ds_pt = m_vizset[idx][0] ;
+				MapLocation upscaled_pt;  //oVG.GetSelfLoc() ;
+				upscaled_pt.x = ds_pt.x * nscale ;
+				upscaled_pt.y = ds_pt.y * nscale ;
 				uint32_t upscaled_selfidx = upscaled_pt.y * mu_gmwidth + upscaled_pt.x ;
 
 				// update self loc / idx
-				mve_FreeCells[idx].SetSelfIdx( upscaled_selfidx) ;
-				mve_FreeCells[idx].SetSelfLoc( upscaled_pt );
-
+				m_vizset[idx][0] = upscaled_pt ;
+				int numpts = m_vizsetsize[idx] ;
 				// update member locs / idxs
-				std::vector<MapLocation> mpts = mve_FreeCells[idx].GetMemberLocs() ;
-				std::vector<uint32_t> lidxs = mve_FreeCells[idx].GetMemberIdxs() ;
-				for ( int midx = 0; midx < mpts.size(); midx++)
+				for ( int midx = 1; midx < numpts; midx++)
 				{
-					MapLocation up_mp = mpts[midx];
-					up_mp.x = up_mp.x * nscale ;
-					up_mp.y = up_mp.y * nscale ;
-					mpts[midx] = up_mp ;
-					lidxs[midx] = up_mp.y * mu_gmwidth + up_mp.x  ;
+					MapLocation up_mp ;
+					MapLocation ds_mp = m_vizset[idx][midx];
+					up_mp.x = ds_mp.x * nscale ;
+					up_mp.y = ds_mp.y * nscale ;
+					m_vizset[idx][midx] = up_mp ;
 #ifdef DEBUG_DRAW
-cv::circle(cvimg_orig, cv::Point(up_mp.x, up_mp.y), 2, cv::Scalar(0,255,255), 1, 8, 0) ;
+cv::circle(cvimg_orig, cv::Point(m_vizset[idx][midx].x, up_mp.y), 2, cv::Scalar(0,255,255), 1, 8, 0) ;
 #endif
 				}
-				mve_FreeCells[idx].SetMemberLocs(mpts);
-				mve_FreeCells[idx].SetMemberIdxs(lidxs) ;
 			}
 	    }
 	clock_t upscale_end = clock();
