@@ -258,6 +258,9 @@ public:
    */
   void polygonOutlineCells(const std::vector<MapLocation>& polygon, std::vector<MapLocation>& polygon_cells);
 
+  // single rayshooting process -- hankm
+  void rayshootCells(const std::vector<MapLocation>& polygon, std::vector<MapLocation>& polygon_cells);
+
   /**
    * @brief  Get the map cells that fill a convex polygon
    * @param polygon The polygon in map coordinates to rasterize

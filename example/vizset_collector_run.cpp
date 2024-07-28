@@ -213,27 +213,34 @@ class MapServer
 //void on_mouse(int event, int x, int y, int flags, vector<VizSet> userdata)
 void on_mouse(int event, int x, int y, int flags, void* userdata)
 {
-	//cout << "flags: " << flags << endl;
-	//std::vector<VizSet>* pmydata = (std::vector<VizSet>*) userdata;
-	//VizSet* pmydata = (VizSet*) userdata ;
-	//VizSet* pstart_ptr = pmydata ;
-//	MapLocation *ploc = (MapLocation*) userdata;
-
+//cout << "flags: " << flags << endl;
+clock_t alloc_start = clock();
 	VizSetCollector* ptr = (VizSetCollector*) userdata ;
-	std::vector<VizSet> veSet = ptr->GetVizSet() ;
+	int num_freecells = ptr->GetNumFreeCells() ;
+
+	MapLocation** ppvizset = ptr->GetVizSetPtr() ;
+	int* vizsetsize = ptr->GetVizSetSizePtr();
+
+clock_t alloc_end = clock();
+double alloc_time = double(alloc_end - alloc_start)/CLOCKS_PER_SEC;
+//printf("alloc time: %f \n", alloc_time);
 
     if ( event == cv::EVENT_LBUTTONDOWN )
     {
+    	printf("tot num free cells %d \n", num_freecells );
     	cv::cvtColor(img_orig, dispimg, cv::COLOR_GRAY2RGB);
         std::cout << "Left button of the mouse is clicked in on_mouse() func (" << x << ", " << y << ")" << std::endl;
-        std::cout << ptr->GetMapImg().cols << " " << ptr->GetMapImg().rows << endl;
+        std::cout << "Map Size (width, height): " <<  ptr->GetMapImg().cols << " " << ptr->GetMapImg().rows << endl;
         int minerror = 10000000;
-        for( int sidx=0; sidx < veSet.size(); sidx++)
-        {
-        	uint32_t px = veSet[sidx].GetSelfLoc().x ;
-        	uint32_t py = veSet[sidx].GetSelfLoc().y ;
 
-        	int error = sqrt( (px - x)*(px - x) + (py - y)*(py - y) ) ;
+        int rcentidx = 0 ;
+        clock_t start_search = clock() ;
+        for( int sidx=0; sidx < num_freecells; sidx++)
+        {
+        	uint32_t cx = ppvizset[sidx][0].x ;
+        	uint32_t cy = ppvizset[sidx][0].y ;
+//printf("sidx: %d cxy: %d %d \n", sidx, cx, cy);
+        	int error = sqrt( (cx - x)*(cx - x) + (cy - y)*(cy - y) ) ;
         	if(error < minerror)
         	{
         		minerror = error ;
@@ -242,16 +249,25 @@ void on_mouse(int event, int x, int y, int flags, void* userdata)
 			// debug
         	if( error < 4 )
         	{
-        		std::vector<MapLocation> mpts = veSet[sidx].GetMemberLocs();
-        		for( int midx=0; midx < mpts.size(); midx++ )
-				{
-        			cv::circle(dispimg, cv::Point(mpts[midx].x, mpts[midx].y), 2, cv::Scalar(0,255,255), 1, 8, 0) ;
-        			//printf(" mp : %d %d \n", mpts[midx].x, mpts[midx].y ) ;
-				}
-        		cv::imshow(window_name, dispimg);
+        		rcentidx = sidx ;
         		break ;
         	}
         }
+
+        clock_t end_search = clock();
+        double search_time = double(end_search - start_search)/CLOCKS_PER_SEC;
+
+        clock_t start_draw = clock() ;
+		int num_vizset = vizsetsize[rcentidx];
+		for( int midx=0; midx < num_vizset; midx++ )
+		{
+			cv::circle(dispimg, cv::Point(ppvizset[rcentidx][midx].x, ppvizset[rcentidx][midx].y), 1, cv::Scalar(0,255,255), 1, 8, 0) ;
+		}
+		cv::circle(dispimg, cv::Point(ppvizset[rcentidx][0].x, ppvizset[rcentidx][0].y), 4, cv::Scalar(0,0,255), cv::FILLED, 8, 0) ;
+        clock_t end_draw = clock();
+        double draw_time = double(end_draw - start_draw)/CLOCKS_PER_SEC;
+//printf("search time %.3fs / draw time %.3fs \n", search_time, draw_time);
+		cv::imshow(window_name, dispimg);
     }
 }
 
@@ -267,7 +283,6 @@ int main(int argc, char **argv)
   int num_downsamples = (argc == 2) ? 0 : atof(argv[2]);
 
 // load map from img
-
   nav_msgs::GetMap::Response map_resp_;
   int negate;
   double occ_th, free_th;
@@ -286,12 +301,18 @@ int main(int argc, char **argv)
   img_orig = oVizSetCollector.GetMapImg().clone();
   cv::cvtColor(img_orig, dispimg, cv::COLOR_GRAY2RGB);
   cv::namedWindow(window_name);
+
   VizSetCollector* pVizSetCollector = &oVizSetCollector ;
   cv::setMouseCallback(window_name, on_mouse, pVizSetCollector ) ;
 
   imshow(window_name, dispimg);
-  cv::waitKey(0);
 
+  while(1)
+  {
+  	  int inKey = cv::waitKey();
+  	  if(inKey == 27) break;
+  }
+  cv::destroyAllWindows();
 
   return 0;
 }
